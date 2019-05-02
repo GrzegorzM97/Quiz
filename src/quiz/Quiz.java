@@ -14,11 +14,15 @@ import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -37,6 +41,10 @@ public class Quiz extends JFrame {
     private BufferedReader fileWithQuestions;
     private BufferedReader fileWithAnswers;
     private BufferedReader correctAnswers;
+    private BufferedWriter theBestResult;
+    private BufferedWriter lastResult;
+    private BufferedReader lastResultReader;
+    private BufferedReader theBestResultReader;
     
     private final int sizeOfTabs = 8;
     private String[] questions = new String[sizeOfTabs];
@@ -52,6 +60,8 @@ public class Quiz extends JFrame {
     private JLabel questionPrint;
     private JLabel score;
     private JLabel scoreOfFalse;
+    private JLabel theBestScore;
+    private JLabel lastScore;
     
     
     
@@ -65,6 +75,7 @@ public class Quiz extends JFrame {
     private static int randomQuestion;
     private static int scoreTrue;
     private static int scoreFalse;
+    private static String theLastResultKeeper;
     
     public Quiz() throws IOException
     {
@@ -80,6 +91,16 @@ public class Quiz extends JFrame {
         fileWithQuestions = new BufferedReader(new FileReader("questions/questions.txt"));
         fileWithAnswers = new BufferedReader(new FileReader("answers/answers.txt"));
         correctAnswers  = new BufferedReader(new FileReader("answers/correct.txt"));
+        
+        lastResultReader = new BufferedReader(new FileReader("questions/lastResult.txt"));
+        theLastResultKeeper = lastResultReader.readLine();
+        theBestScore();
+        
+        
+        
+        
+       
+        
 
         // Reading questions,answers and correct answers from files to tabs
         questions = fileReader(fileWithQuestions);
@@ -116,6 +137,18 @@ public class Quiz extends JFrame {
             scoreOfFalse.setForeground(Color.white);
             scoreOfFalse.setLocation(1500,40);
             scoreOfFalse.setSize(new Dimension(400,50));
+        
+            theBestScore.setFont(new Font("TimesRoman", Font.TYPE1_FONT, 30));
+            theBestScore.setForeground(Color.white);
+            theBestScore.setLocation(800,0);
+            theBestScore.setSize(new Dimension(400,50));
+        lastScore = new JLabel("Ostatni wynik: "+ theLastResultKeeper);
+            lastScore.setFont(new Font("TimesRoman", Font.TYPE1_FONT, 30));
+            lastScore.setForeground(Color.white);
+            lastScore.setLocation(0,0);
+            lastScore.setSize(new Dimension(400,50));
+            
+        
        
         
         
@@ -153,6 +186,10 @@ public class Quiz extends JFrame {
         D.addActionListener(new buttonListener("D"));
         
         
+        
+        //Componets 
+        background.add(theBestScore);
+        background.add(lastScore);
         background.add(score);
         background.add(scoreOfFalse);
         background.add(questionPrint);
@@ -180,7 +217,11 @@ public class Quiz extends JFrame {
                 {
                     JOptionPane.showMessageDialog(null, "Correct!");
                     scoreTrueChanger();          
+                try {
                     anotherQuestion();
+                } catch (IOException ex) {
+                    Logger.getLogger(Quiz.class.getName()).log(Level.SEVERE, null, ex);
+                }
                     questionPrint.setText(questions[randomQuestion].substring(2,questions[randomQuestion].length()));
                     buttonsAnswers();
                     
@@ -194,7 +235,10 @@ public class Quiz extends JFrame {
             
         }
         
+        
     }
+    
+    
     /////////////////////////////////////////////////////////////MAIN////////////////////////////////////////////////////////////////////////////////
     public static void main(String[] args) throws IOException {
         
@@ -241,13 +285,17 @@ private String[] fileReader(BufferedReader file ) throws IOException
     }
 
 //drawing the next question
-   private void anotherQuestion()
+   private void anotherQuestion() throws IOException
     {
         randomQuestion = randomIndex();
         
         if(questions.length == indexs.size())
         {
-            JOptionPane.showMessageDialog(null, "No more questions, your result: "+ ((scoreTrue-scoreFalse)*100)/8 + "%.");
+            JOptionPane.showMessageDialog(null, "No more questions, your result: "+ ((scoreTrue-scoreFalse)*100)/sizeOfTabs + "%.");
+            lastResult = new BufferedWriter(new FileWriter("questions/lastResult.txt"));
+            lastResult.write(scoreTrue +"/"+ scoreFalse + " "+ ((scoreTrue-scoreFalse)*100)/sizeOfTabs + "%.");
+            lastResult.close();
+            lastResultReader.close();
             
             System.exit(1);
         }
@@ -269,7 +317,6 @@ private String[] fileReader(BufferedReader file ) throws IOException
        String linia = answers[randomQuestion];
        String tab[] = new String[4];
        tab=linia.split("\\*");
-       System.out.println(tab[2]);
        A.setText(tab[0]);
        B.setText(tab[1]);
        C.setText(tab[2]);
@@ -280,7 +327,7 @@ private String[] fileReader(BufferedReader file ) throws IOException
    private void scoreTrueChanger()
    {
        scoreTrue++;
-       score.setText("Poprawna odpowiedz: "+ scoreTrue);   
+       score.setText("Poprawne odpowiedzi: "+ scoreTrue);   
    }
    
    //False answers counter
@@ -289,5 +336,37 @@ private String[] fileReader(BufferedReader file ) throws IOException
        scoreFalse++;
        scoreOfFalse.setText("Niepoprawna odpowiedz: "+ scoreFalse);
    }
+    
+    private void theBestScore() throws IOException
+    {
+        
+        
+        
+        theBestResultReader = new BufferedReader(new FileReader("questions/theBestScore.txt"));
+        String[] theBestReader = theBestResultReader.readLine().split(" ");
+        String[] tmp1 = theLastResultKeeper.split("\\/");
+        String[] tmp2 = tmp1[1].split(" ");
+        int TrueOfPresentTheBestResult = Integer.parseInt(theBestReader[0]);
+        int FalseOfPresentTheBestResult = Integer.parseInt(theBestReader[1]);
+        int TrueOfLastResult = Integer.parseInt(tmp1[0]);
+        int FalseOfLastResult = Integer.parseInt(tmp2[0]);
+        
+        if((((TrueOfLastResult-FalseOfLastResult)*100)/8) > (((TrueOfPresentTheBestResult - FalseOfPresentTheBestResult)*100)/sizeOfTabs ))
+        {
+            theBestResult = new BufferedWriter(new FileWriter("questions/theBestScore.txt"));
+            theBestResult.write(TrueOfLastResult +" " + FalseOfLastResult);
+            theBestScore = new JLabel("Najlepszy wynik: " + TrueOfLastResult + "/"+ FalseOfLastResult +" " + ((TrueOfLastResult-FalseOfLastResult)*100)/sizeOfTabs + "%.");
+            theBestResult.close();
+        }
+            
+        else
+        {
+            theBestScore = new JLabel("Najlepszy wynik: " + TrueOfPresentTheBestResult + "/"+ FalseOfPresentTheBestResult +" " + ((TrueOfPresentTheBestResult-FalseOfPresentTheBestResult)*100)/sizeOfTabs + "%.");
+            theBestResultReader.close();
+        }
+        
+        
+        
+    }
 
 }
